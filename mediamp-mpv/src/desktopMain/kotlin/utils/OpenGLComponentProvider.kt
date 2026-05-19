@@ -15,9 +15,10 @@ import org.jetbrains.skiko.context.ContextHandler
 import org.jetbrains.skiko.context.OpenGLContextHandler
 import org.jetbrains.skiko.redrawer.WindowsOpenGLRedrawer
 
-class OpenGLComponentProvider(private val skiaLayer: SkiaLayer) {
-    private val openglRedrawer: WindowsOpenGLRedrawer = skiaLayer.redrawer as WindowsOpenGLRedrawer
-
+class OpenGLComponentProvider private constructor(
+    private val skiaLayer: SkiaLayer,
+    private val openglRedrawer: WindowsOpenGLRedrawer,
+) {
     private val deviceHandleField = WindowsOpenGLRedrawer::class.java
         .getDeclaredField("device")
         .also { it.isAccessible = true }
@@ -42,4 +43,11 @@ class OpenGLComponentProvider(private val skiaLayer: SkiaLayer) {
     val directContext: DirectContext
         get() = (contextHandlerHandleField.get(openglRedrawer) as OpenGLContextHandler)
             .let { directContextHandler.get(it) as DirectContext }
+
+    companion object {
+        fun from(skiaLayer: SkiaLayer): OpenGLComponentProvider? {
+            val redrawer = skiaLayer.redrawer as? WindowsOpenGLRedrawer ?: return null
+            return OpenGLComponentProvider(skiaLayer, redrawer)
+        }
+    }
 }

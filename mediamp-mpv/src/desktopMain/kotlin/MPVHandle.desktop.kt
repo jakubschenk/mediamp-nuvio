@@ -12,6 +12,12 @@ package org.openani.mediamp.mpv
 import org.openani.mediamp.InternalMediampApi
 
 @InternalMediampApi
+external fun nAttachWindowSurface(ptr: Long, windowPtr: Long): Boolean
+
+@InternalMediampApi
+external fun nDetachWindowSurface(ptr: Long): Boolean
+
+@InternalMediampApi
 external fun nCreateRenderContext(ptr: Long, devicePtr: Long, contextPtr: Long): Boolean
 
 @InternalMediampApi
@@ -34,12 +40,17 @@ external fun nReadTextureStats(ptr: Long): String
 
 @OptIn(InternalMediampApi::class)
 internal actual fun attachSurface(ptr: Long, surface: Any): Boolean {
-    error("only implemented on Android")
+    val windowPtr = when (surface) {
+        is Long -> surface
+        is Number -> surface.toLong()
+        else -> error("desktop mpv surface must be a native HWND pointer")
+    }
+    return nAttachWindowSurface(ptr, windowPtr)
 }
 
 @OptIn(InternalMediampApi::class)
 internal actual fun detachSurface(ptr: Long): Boolean {
-    error("only implemented on Android")
+    return nDetachWindowSurface(ptr)
 }
 
 @OptIn(InternalMediampApi::class)

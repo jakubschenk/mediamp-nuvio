@@ -47,6 +47,8 @@ JNIEXPORT jboolean JNICALL FN_ANDROID(nAttachAndroidSurface)(JNIEnv *env, jclass
 JNIEXPORT jboolean JNICALL FN_ANDROID(nDetachAndroidSurface)(JNIEnv *env, jclass clazz, jlong ptr);
 
 #ifdef _WIN32
+JNIEXPORT jboolean JNICALL FN_DESKTOP(nAttachWindowSurface)(JNIEnv *env, jclass clazz, jlong ptr, jlong window_ptr);
+JNIEXPORT jboolean JNICALL FN_DESKTOP(nDetachWindowSurface)(JNIEnv *env, jclass clazz, jlong ptr);
 JNIEXPORT jboolean JNICALL FN_DESKTOP(nCreateRenderContext)(JNIEnv *env, jclass clazz, jlong ptr, jlong device_ptr, jlong context_ptr);
 JNIEXPORT jboolean JNICALL FN_DESKTOP(nDestroyRenderContext)(JNIEnv *env, jclass clazz, jlong ptr);
 JNIEXPORT jint JNICALL FN_DESKTOP(nCreateTexture)(JNIEnv *env, jclass clazz, jlong ptr, jint width, jint height);
@@ -253,6 +255,16 @@ return instance->detach_android_surface(env);
 }
 
 #ifdef _WIN32
+
+JNIEXPORT jboolean JNICALL FN_DESKTOP(nAttachWindowSurface)(JNIEnv * env, jclass clazz, jlong ptr, jlong window_ptr) {
+auto *instance = reinterpret_cast<mediampv::mpv_handle_t *>(static_cast<uintptr_t>(ptr));
+return instance->attach_window_surface(static_cast<int64_t>(window_ptr));
+}
+
+JNIEXPORT jboolean JNICALL FN_DESKTOP(nDetachWindowSurface)(JNIEnv * env, jclass clazz, jlong ptr) {
+auto *instance = reinterpret_cast<mediampv::mpv_handle_t *>(static_cast<uintptr_t>(ptr));
+return instance->detach_window_surface();
+}
 
 JNIEXPORT jboolean JNICALL FN_DESKTOP(nCreateRenderContext)(JNIEnv * env, jclass clazz, jlong ptr, jlong device_ptr, jlong context_ptr) {
 auto *instance = reinterpret_cast<mediampv::mpv_handle_t *>(static_cast<uintptr_t>(ptr));

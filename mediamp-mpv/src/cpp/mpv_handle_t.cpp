@@ -217,7 +217,7 @@ return false;
 #endif
 }
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(_WIN32)
 bool mpv_handle_t::attach_window_surface(int64_t wid) {
 FP;
 CHECK_HANDLE();

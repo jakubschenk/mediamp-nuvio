@@ -23,6 +23,7 @@ import org.openani.mediamp.metadata.MediaProperties
 import org.openani.mediamp.source.MediaData
 import org.openani.mediamp.source.SeekableInputMediaData
 import org.openani.mediamp.source.UriMediaData
+import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 @kotlin.OptIn(InternalMediampApi::class)
@@ -153,20 +154,29 @@ actual class MpvMediampPlayer(
             }
 
             is Platform.Windows -> {
-                handle.option("gpu-context", "win,opengl")
-                handle.option("opengl-es", "no")
-
                 handle.option("ao", "wasapi")
-                handle.option("vo", "libmpv")
-                handle.option("fbo-format", "rgba8")
-                handle.option("dither-depth", "no")
+                when (windowsSurfaceMode()) {
+                    WindowsSurfaceMode.NativeWindow -> {
+                        handle.option("vo", windowsEnvOrProperty("NUVIO_MPV_NATIVE_VO", "nuvio.mpv.native.vo") ?: "gpu-next")
+                        handle.option("gpu-api", windowsEnvOrProperty("NUVIO_MPV_GPU_API", "nuvio.mpv.gpuApi") ?: "d3d11")
+                        handle.option("gpu-context", windowsEnvOrProperty("NUVIO_MPV_GPU_CONTEXT", "nuvio.mpv.gpuContext") ?: "d3d11")
+                    }
+
+                    WindowsSurfaceMode.OpenGlInterop -> {
+                        handle.option("gpu-context", "win,opengl")
+                        handle.option("opengl-es", "no")
+                        handle.option("vo", "libmpv")
+                        handle.option("fbo-format", "rgba8")
+                        handle.option("dither-depth", "no")
+                        // Some Windows GPU/driver combinations corrupt HEVC Main10
+                        // frames when libmpv renders hardware-decoded frames into the
+                        // OpenGL FBO used by Compose. Let mpv software-decode HEVC on
+                        // Windows while preserving hardware decode for other codecs.
+                        hardwareDecoderCodecs = "h264,mpeg4,mpeg2video,vp8,vp9,av1"
+                    }
+                }
                 handle.option("video-sync", "audio")
                 handle.option("video-timing-offset", "0.0")
-                // Some Windows GPU/driver combinations corrupt HEVC Main10
-                // frames when libmpv renders hardware-decoded frames into the
-                // OpenGL FBO used by Compose. Let mpv software-decode HEVC on
-                // Windows while preserving hardware decode for other codecs.
-                hardwareDecoderCodecs = "h264,mpeg4,mpeg2video,vp8,vp9,av1"
             }
 
             is Platform.MacOS -> {
@@ -311,3 +321,32 @@ actual class MpvMediampPlayer(
         }
     }
 }
+
+private enum class WindowsSurfaceMode {
+    OpenGlInterop,
+    NativeWindow,
+}
+
+private fun windowsSurfaceMode(): WindowsSurfaceMode {
+    val configured = windowsEnvOrProperty("NUVIO_MPV_SURFACE", "nuvio.mpv.surface")
+        ?.lowercase(Locale.US)
+        ?.replace('_', '-')
+    return when (configured) {
+        "native", "native-window", "hwnd", "window" -> WindowsSurfaceMode.NativeWindow
+        "opengl", "open-gl", "gl", "libmpv" -> WindowsSurfaceMode.OpenGlInterop
+        else -> {
+            val renderApi = System.getProperty("skiko.renderApi")
+                ?.uppercase(Locale.US)
+                ?.replace('-', '_')
+            if (renderApi == "OPENGL") WindowsSurfaceMode.OpenGlInterop else WindowsSurfaceMode.NativeWindow
+        }
+    }
+}
+
+private fun windowsEnvOrProperty(envName: String, propertyName: String): String? =
+    System.getenv(envName)
+        ?.trim()
+        ?.takeIf(String::isNotBlank)
+        ?: System.getProperty(propertyName)
+            ?.trim()
+            ?.takeIf(String::isNotBlank)

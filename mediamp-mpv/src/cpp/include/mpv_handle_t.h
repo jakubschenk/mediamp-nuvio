@@ -53,6 +53,11 @@ bool attach_window_surface(int64_t wid);
 bool detach_window_surface();
 #endif
 
+#ifdef _WIN32
+bool attach_window_surface(int64_t wid);
+bool detach_window_surface();
+#endif
+
 // Render API (Windows x64 only)
 bool create_render_context(HDC device, HGLRC context);
 bool destroy_render_context();
