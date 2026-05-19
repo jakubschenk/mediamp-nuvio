@@ -38,6 +38,7 @@ bool release_texture_impl(GLuint* texture_id, GLuint* framebuffer_object);
 static void* get_proc_address_mpv(void* ctx, const char* name);
 
 #define GL_FRAMEBUFFER            0x8D40
+#define GL_FRAMEBUFFER_BINDING    0x8CA6
 #define GL_COLOR_ATTACHMENT0      0x8CE0
 #define GL_RGBA8                  0x8058
 #define GL_FRAMEBUFFER_COMPLETE   0x8CD5
@@ -329,6 +330,10 @@ GLuint old_texture = texture_;
 GLuint old_fbo = fbo_;
 GLuint new_texture = GL_ZERO;
 GLuint new_fbo = GL_ZERO;
+GLint previous_texture_binding = 0;
+GLint previous_framebuffer_binding = 0;
+glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture_binding);
+glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous_framebuffer_binding);
 
 glGenTextures(1, &new_texture);
 glBindTexture(GL_TEXTURE_2D, new_texture);
@@ -347,7 +352,8 @@ GLenum status = pfnGlCheckFramebufferStatus(GL_FRAMEBUFFER);
 if (status != GL_FRAMEBUFFER_COMPLETE) {
 LOG("Framebuffer not complete in create_texture: 0x%x", status);
 release_texture_impl(&new_texture, &new_fbo);
-pfnGlBindFramebuffer(GL_FRAMEBUFFER, 0);
+glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture_binding));
+pfnGlBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer_binding));
 wglMakeCurrent(old_dc, old_ctx);
 return 0;
 }
@@ -362,7 +368,8 @@ if (old_texture != GL_ZERO && old_fbo != GL_ZERO) {
 release_texture_impl(&old_texture, &old_fbo);
 }
 
-pfnGlBindFramebuffer(GL_FRAMEBUFFER, 0);
+glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture_binding));
+pfnGlBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer_binding));
 wglMakeCurrent(old_dc, old_ctx);
 
 return texture_;
@@ -380,9 +387,15 @@ height_ = 0;
 HDC old_dc = wglGetCurrentDC();
 HGLRC old_ctx = wglGetCurrentContext();
 wglMakeCurrent(device_, context_);
+GLint previous_texture_binding = 0;
+GLint previous_framebuffer_binding = 0;
+glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture_binding);
+glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous_framebuffer_binding);
 
 bool released = release_texture_impl(&texture_, &fbo_);
 
+glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture_binding));
+pfnGlBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer_binding));
 wglMakeCurrent(old_dc, old_ctx);
 
 return released;

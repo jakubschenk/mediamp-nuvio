@@ -11,7 +11,7 @@ set(MPV_LIB_PATH "")
 set(MPV_LIB_NAME "")
 
 if(WIN32)
-    add_compile_definitions(_WIN32_WINNT=0x0A00)
+    add_compile_definitions(_WIN32_WINNT=0x0A00 NOMINMAX)
     # Windows
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         # x64
@@ -26,7 +26,7 @@ if(WIN32)
     if (MSVC)
         message(STATUS "MSVC detected")
         add_compile_options(/Zc:__cplusplus)
-        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
     endif ()
 elseif(APPLE)
     # macOS (Darwin)

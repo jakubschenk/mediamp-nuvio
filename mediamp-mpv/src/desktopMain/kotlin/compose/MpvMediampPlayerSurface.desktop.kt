@@ -283,6 +283,10 @@ actual fun MpvMediampPlayerSurface(
         }
 
         if (textureId != 0) {
+            // Reset Skia state before mpv touches the GL context. Resetting
+            // after render can make Skia draw the adopted texture into mpv's
+            // FBO instead of the window on some Windows drivers.
+            runCatching { components.directContext.resetGLAll() }
             val renderResult = when (renderDebugMode) {
                 "solid" -> runCatching {
                     player.debugRenderSolid(0.0f, 0.85f, 0.15f, 1.0f)
@@ -324,11 +328,10 @@ actual fun MpvMediampPlayerSurface(
             if (lastLoggedMpvProps != propsLogKey) {
                 logSurface(
                     "mpvProps size=$surfaceSizeKey texture=$textureId mode=${renderDebugMode.ifBlank { "normal" }} $props " +
-                        "player=${System.identityHashCode(player)}",
+                    "player=${System.identityHashCode(player)}",
                 )
                 lastLoggedMpvProps = propsLogKey
             }
-            runCatching { components.directContext.resetGLAll() }
         }
         player.image?.let {
             skiaCanvas.drawImageRect(it, Rect.makeWH(logicalWidth, logicalHeight))
