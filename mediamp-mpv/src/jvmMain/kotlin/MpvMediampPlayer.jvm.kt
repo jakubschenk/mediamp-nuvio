@@ -155,7 +155,8 @@ actual class MpvMediampPlayer(
 
             is Platform.Windows -> {
                 handle.option("ao", "wasapi")
-                when (windowsSurfaceMode()) {
+                val surfaceMode = windowsSurfaceMode()
+                when (surfaceMode) {
                     WindowsSurfaceMode.NativeWindow -> {
                         handle.option("vo", windowsEnvOrProperty("NUVIO_MPV_NATIVE_VO", "nuvio.mpv.native.vo") ?: "gpu-next")
                         handle.option("gpu-api", windowsEnvOrProperty("NUVIO_MPV_GPU_API", "nuvio.mpv.gpuApi") ?: "d3d11")
@@ -175,7 +176,17 @@ actual class MpvMediampPlayer(
                         hardwareDecoderCodecs = "h264,mpeg4,mpeg2video,vp8,vp9,av1"
                     }
                 }
-                handle.option("video-sync", "audio")
+                val defaultVideoSync = when (surfaceMode) {
+                    WindowsSurfaceMode.NativeWindow -> "display-resample"
+                    WindowsSurfaceMode.OpenGlInterop -> "audio"
+                }
+                handle.option(
+                    "video-sync",
+                    windowsEnvOrProperty("NUVIO_MPV_VIDEO_SYNC", "nuvio.mpv.videoSync") ?: defaultVideoSync,
+                )
+                windowsEnvOrProperty("NUVIO_MPV_DISPLAY_FPS", "nuvio.mpv.displayFps")?.let { displayFps ->
+                    handle.option("display-fps", displayFps)
+                }
                 handle.option("video-timing-offset", "0.0")
             }
 
