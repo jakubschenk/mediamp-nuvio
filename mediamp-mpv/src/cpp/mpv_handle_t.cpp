@@ -98,6 +98,7 @@ mpv_set_option_string(handle_, "msg-level", "all=v");
 
 bool mpv_handle_t::initialize() {
 FP;
+LOCK(handle_lock);
 
 if (!handle_) return false;
 if (mpv_initialize(handle_) < 0) {
@@ -117,6 +118,7 @@ return true;
 
 bool mpv_handle_t::set_event_listener(JNIEnv *env, jobject listener) {
 FP;
+LOCK(handle_lock);
 
 if (event_listener_ && *event_listener_) {
 env->DeleteGlobalRef(*event_listener_);
@@ -137,36 +139,42 @@ return true;
 
 bool mpv_handle_t::command(const char **args) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 return mpv_command(handle_, args) >= 0;
 }
 
 bool mpv_handle_t::set_option(const char *key, const char *value) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 return mpv_set_option_string(handle_, key, value);
 }
 
 bool mpv_handle_t::get_property(const char *name, mpv_format format, void *out_result) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 return mpv_get_property(handle_, name, format, out_result) >= 0;
 }
 
 bool mpv_handle_t::set_property(const char *name, mpv_format format, void *in_value) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 return mpv_set_property(handle_, name, format, in_value) >= 0;
 }
 
 bool mpv_handle_t::observe_property(const char *property, mpv_format format, uint64_t reply_data) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 return mpv_observe_property(handle_, reply_data, property, format) >= 0;
 }
 
 bool mpv_handle_t::unobserve_property(uint64_t reply_data) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 return mpv_unobserve_property(handle_, reply_data) >= 0;
 }
@@ -176,6 +184,7 @@ CREATE_LOCK(surface_access_lock);
 bool mpv_handle_t::attach_android_surface(JNIEnv *env, jobject surface) {
 FP;
 LOCK(surface_access_lock);
+LOCK(handle_lock);
 CHECK_HANDLE()
 
 #ifdef __ANDROID__
@@ -200,6 +209,7 @@ return false;
 bool mpv_handle_t::detach_android_surface(JNIEnv *env) {
 FP;
 LOCK(surface_access_lock);
+LOCK(handle_lock);
 CHECK_HANDLE()
 
 #ifdef __ANDROID__
@@ -220,12 +230,14 @@ return false;
 #if defined(__ANDROID__) || defined(_WIN32)
 bool mpv_handle_t::attach_window_surface(int64_t wid) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE();
 return mpv_set_option(handle_, "wid", MPV_FORMAT_INT64, &wid) >= 0;
 }
 
 bool mpv_handle_t::detach_window_surface() {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE();
 int64_t wid = 0;
 return mpv_set_option(handle_, "wid", MPV_FORMAT_INT64, &wid) >= 0;
@@ -234,6 +246,7 @@ return mpv_set_option(handle_, "wid", MPV_FORMAT_INT64, &wid) >= 0;
 
 bool mpv_handle_t::create_render_context(HDC device, HGLRC context) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 
 #ifdef _WIN32
@@ -297,6 +310,7 @@ return addr;
 
 bool mpv_handle_t::destroy_render_context() {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 
 if (!render_context_)
@@ -316,6 +330,7 @@ return true;
 
 GLuint mpv_handle_t::create_texture(int width, int height) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE_RETURN_INT()
 LOCK(texture_lock);
 
@@ -377,6 +392,7 @@ return texture_;
 
 bool mpv_handle_t::release_texture() {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 LOCK(texture_lock);
 
@@ -416,6 +432,8 @@ return true;
 }
 
 bool mpv_handle_t::render_frame() {
+FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 LOCK(texture_lock);
 
@@ -472,6 +490,8 @@ return render_result >= 0;
 }
 
 bool mpv_handle_t::debug_render_solid(float red, float green, float blue, float alpha) {
+FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
 LOCK(texture_lock);
 
@@ -504,7 +524,12 @@ return true;
 }
 
 std::string mpv_handle_t::read_texture_stats() {
+FP;
+LOCK(handle_lock);
 LOCK(texture_lock);
+
+if (!handle_)
+return "handle=closed";
 
 if (!context_ || !device_ || !fbo_ || !texture_ || !width_ || !height_)
 return "unavailable";
@@ -559,7 +584,13 @@ return result.str();
 
 bool mpv_handle_t::destroy(JNIEnv *env) {
 FP;
+LOCK(handle_lock);
 CHECK_HANDLE()
+
+#if defined(__ANDROID__) || defined(_WIN32)
+int64_t wid = 0;
+mpv_set_option(handle_, "wid", MPV_FORMAT_INT64, &wid);
+#endif
 
 event_loop_request_exit = true;
 mpv_wakeup(handle_);
@@ -571,7 +602,9 @@ return false;
 event_thread_->join();
 
 if (event_listener_) env->DeleteGlobalRef(*event_listener_);
+event_listener_ = nullptr;
 mpv_terminate_destroy(handle_);
+handle_ = nullptr;
 
 return true;
 }

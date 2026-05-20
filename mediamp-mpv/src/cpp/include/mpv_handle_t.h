@@ -72,6 +72,7 @@ std::string read_texture_stats();
 private:
 JavaVM *jvm_;
 mpv_handle *handle_;
+CREATE_LOCK(handle_lock);
 
 jobject *event_listener_ = nullptr;
 
